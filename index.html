@@ -62,6 +62,18 @@
   #fullscreen-btn:active{ opacity:1; border-color:var(--neon-blue); }
   #fullscreen-btn svg{ width:16px; height:16px; stroke:var(--text-cold); fill:none; stroke-width:2; }
 
+  #back-corner{
+    position:fixed; bottom:calc(env(safe-area-inset-bottom,0px) + 0.8rem); left:calc(env(safe-area-inset-left,0px) + 0.8rem);
+    z-index:50; display:flex; align-items:center; gap:0.5rem;
+    padding:0.5rem 0.9rem 0.5rem 0.6rem; border-radius:999px;
+    border:1px solid rgba(207,233,245,0.25); background:rgba(5,6,10,0.4);
+    cursor:pointer; opacity:0.55; min-height:38px;
+  }
+  #back-corner:active{ opacity:1; border-color:var(--neon-blue); }
+  #back-corner svg{ width:16px; height:16px; stroke:var(--text-cold); fill:none; stroke-width:2; flex-shrink:0; }
+  #back-corner span{ font-family:'Space Mono', monospace; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-cold); white-space:nowrap; }
+  #back-corner.hidden{ display:none; }
+
   /* ---- CHAT ---- */
   #level-chat1, #level-chat2{ justify-content:flex-end; padding:0; }
   .chat-log{ flex:1; width:100%; overflow-y:auto; padding:1.6rem 6vw 1rem; display:flex; flex-direction:column; gap:0.9rem; mask-image:linear-gradient(to bottom, transparent, black 5%); -webkit-overflow-scrolling:touch; }
@@ -147,15 +159,15 @@
 
   <!-- videos -->
   <video class="level-video" id="video-00-intro" src="videos/00_intro.mp4" muted loop playsinline webkit-playsinline preload="auto"></video>
-  <video class="level-video" id="video-01-encounter" src="videos/01_encounter.mp4" playsinline webkit-playsinline preload="auto"></video>
-  <video class="level-video" id="video-02-thechat" src="videos/02_thechat.mp4" playsinline webkit-playsinline preload="auto"></video>
-  <video class="level-video" id="video-03-yearning" src="videos/03_yearning.mp4" loop playsinline webkit-playsinline preload="auto"></video>
-  <video class="level-video" id="video-04a-devoted" src="videos/04a_devoted.mp4" playsinline webkit-playsinline preload="auto"></video>
-  <video class="level-video" id="video-04b-playful" src="videos/04b_playful.mp4" playsinline webkit-playsinline preload="auto"></video>
-  <video class="level-video" id="video-04c-enigmatic" src="videos/04c_enigmatic.mp4" playsinline webkit-playsinline preload="auto"></video>
-  <video class="level-video" id="video-04d-mirror" src="videos/04d_mirror.mp4" playsinline webkit-playsinline preload="auto"></video>
-  <video class="level-video" id="video-05-werethesame" src="videos/05_werethesame.mp4" playsinline webkit-playsinline preload="auto"></video>
-  <video class="level-video" id="video-07-exposure" src="videos/07_exposure.mp4" playsinline webkit-playsinline preload="auto"></video>
+  <video class="level-video" id="video-01-encounter" data-src="videos/01_encounter.mp4" playsinline webkit-playsinline preload="none"></video>
+  <video class="level-video" id="video-02-thechat" data-src="videos/02_thechat.mp4" playsinline webkit-playsinline preload="none"></video>
+  <video class="level-video" id="video-03-yearning" data-src="videos/03_yearning.mp4" loop playsinline webkit-playsinline preload="none"></video>
+  <video class="level-video" id="video-04a-devoted" data-src="videos/04a_devoted.mp4" playsinline webkit-playsinline preload="none"></video>
+  <video class="level-video" id="video-04b-playful" data-src="videos/04b_playful.mp4" playsinline webkit-playsinline preload="none"></video>
+  <video class="level-video" id="video-04c-enigmatic" data-src="videos/04c_enigmatic.mp4" playsinline webkit-playsinline preload="none"></video>
+  <video class="level-video" id="video-04d-mirror" data-src="videos/04d_mirror.mp4" playsinline webkit-playsinline preload="none"></video>
+  <video class="level-video" id="video-05-werethesame" data-src="videos/05_werethesame.mp4" playsinline webkit-playsinline preload="none"></video>
+  <video class="level-video" id="video-07-exposure" data-src="videos/07_exposure.mp4" playsinline webkit-playsinline preload="none"></video>
   <video id="webcam-video" autoplay playsinline muted></video>
   <audio id="audio-outro" src="outro.mp3" preload="auto"></audio>
 
@@ -312,6 +324,10 @@
   <div id="restart-corner" title="restart">
     <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 2.5 5.8M4 12V6M4 12h6"/></svg>
   </div>
+  <div id="back-corner" class="hidden" title="return to previous chapter">
+    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+    <span>back</span>
+  </div>
 </div>
 
 <script>
@@ -344,10 +360,28 @@ requestAnimationFrame(drawBg);
 
 /* ---------------- video control ---------------- */
 function playVideo(id){
-  document.querySelectorAll('.level-video').forEach(v=>{ v.classList.remove('active'); if(v.id!==id) v.pause(); });
+  document.querySelectorAll('.level-video').forEach(v=>{
+    v.classList.remove('active');
+    if(v.id !== id){
+      v.pause();
+      // fully unload videos we're not using right now — keeping many
+      // <video> elements loaded simultaneously is a known cause of later
+      // videos silently failing to play on iOS Safari once memory/decoder
+      // limits are hit. Never unload the intro loop itself.
+      if(v.id !== 'video-00-intro' && v.dataset.src && v.getAttribute('src')){
+        v.removeAttribute('src');
+        v.load();
+      }
+    }
+  });
   const v = document.getElementById(id);
   if(!v) return;
-  v.currentTime = 0; v.classList.add('active');
+  if(v.dataset.src && !v.getAttribute('src')){
+    v.src = v.dataset.src;
+    v.load();
+  }
+  v.currentTime = 0;
+  v.classList.add('active');
   v.play().catch(e=>console.warn('autoplay blocked', id, e));
 }
 /* Plays a video, then calls the callback on 'ended' — or on 'error' if the
@@ -379,6 +413,38 @@ function showLevel(id, label){
   document.getElementById(id).classList.add('active');
   if(label) badge.textContent = label;
 }
+
+/* ---------------- BACK NAVIGATION ---------------- */
+/* Records a lightweight history of the interactive checkpoints the player
+   has passed through (not every micro-transition — just the meaningful
+   screens), so "return to previous chapter" can step back one at a time
+   instead of forcing a full restart. */
+let chapterHistory = [];
+const backBtn = document.getElementById('back-corner');
+
+function pushChapterHistory(levelId){
+  chapterHistory.push(levelId);
+  backBtn.classList.remove('hidden');
+}
+
+function goToPreviousChapter(){
+  if(chapterHistory.length === 0) return;
+  const prevId = chapterHistory.pop();
+  stopAllVideos();
+  showLevel(prevId, 'BACK · ' + prevId.replace('level-','').toUpperCase());
+
+  // one-shot reveals (video-then-button screens) need their button
+  // re-shown manually, since normal flow only reveals them once
+  const reentryButton = {
+    'level-intro': 'btn-play',
+    'level-encounter': 'btn-follow-call',
+    'level-turn': 'btn-look-closer'
+  }[prevId];
+  if(reentryButton) document.getElementById(reentryButton).classList.add('visible');
+
+  if(chapterHistory.length === 0) backBtn.classList.add('hidden');
+}
+backBtn.addEventListener('click', goToPreviousChapter);
 function playLines(container, gap, onDone){
   const lines = container.querySelectorAll('.line');
   lines.forEach((el,i)=> setTimeout(()=>{ lines.forEach(l=>l.classList.remove('visible')); el.classList.add('visible'); }, i*gap+400));
@@ -409,6 +475,7 @@ document.getElementById('btn-sound-on').addEventListener('click', ()=>{
 });
 
 document.getElementById('btn-play').addEventListener('click', ()=>{
+  pushChapterHistory('level-intro');
   showLevel('level-encounter', '01 · ENCOUNTER');
   playVideoThen('video-01-encounter', ()=>{
     document.getElementById('btn-follow-call').classList.add('visible');
@@ -417,6 +484,7 @@ document.getElementById('btn-play').addEventListener('click', ()=>{
 
 /* ================= L1 -> L2 ================= */
 document.getElementById('btn-follow-call').addEventListener('click', ()=>{
+  pushChapterHistory('level-encounter');
   showLevel('level-chat1', '02 · THE CALL ANSWERED');
   stopAllVideos();
   startChat1();
@@ -536,6 +604,7 @@ chatInput1.addEventListener('keydown', e=>{ if(e.key==='Enter') handleChat1Send(
 
 /* ================= L2 -> L3 -> L4 ================= */
 document.getElementById('btn-go-deeper').addEventListener('click', ()=>{
+  pushChapterHistory('level-chat1');
   showLevel('level-chatvideo', '03 · GOING DEEPER');
   playVideoThen('video-02-thechat', ()=>{
     showLevel('level-chat2', '04 · DATE NIGHT');
@@ -614,12 +683,14 @@ profileBlocks.forEach(block=>{
 });
 
 document.getElementById('btn-shape-her').addEventListener('click', ()=>{
+  pushChapterHistory('level-chat2');
   showLevel('level-profile', '04.5 · BEFORE SHE BECOMES YOURS');
   profileIndex = 0;
   showProfileQuestion(profileIndex);
 });
 
 document.getElementById('btn-profile-continue').addEventListener('click', ()=>{
+  pushChapterHistory('level-profile');
   showLevel('level-yearning', '05 · YEARNING');
   playVideo('video-03-yearning');
   swipeIndex = 0;
@@ -701,6 +772,7 @@ function finishYearning(){
   // if there's a genuine tie (including everyone scoring 0), pick randomly among
   // the tied leaders instead of always defaulting to whichever key was defined first
   currentArchetype = topArchetypes[Math.floor(Math.random() * topArchetypes.length)];
+  pushChapterHistory('level-yearning');
   setTimeout(()=>{
     showLevel('level-archetype', '06 · ' + currentArchetype.toUpperCase());
     playVideoThen(ARCHETYPES[currentArchetype].video, ()=>{
@@ -781,6 +853,7 @@ document.getElementById('btn-look-closer').addEventListener('click', async ()=>{
 
   showLevel('level-mirror', '08 · MIRRORING');
   stopAllVideos();
+  pushChapterHistory('level-turn');
   const webcamVideo = document.getElementById('webcam-video');
   try{
     const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
@@ -814,6 +887,7 @@ document.getElementById('btn-close-webcam').addEventListener('click', ()=>{
 /* ================= L8 -> L9 EXPOSURE ================= */
 document.getElementById('btn-continue-exposure').addEventListener('click', ()=>{
   stopWebcam(); // in case the viewer didn't use "close the camera" explicitly
+  pushChapterHistory('level-mirror');
   showLevel('level-exposure', '09 · EXPOSURE');
   playVideoThen('video-07-exposure', ()=>{
     const errors = document.querySelectorAll('#level-exposure .error-line');
@@ -870,6 +944,7 @@ function scheduleOutroCaptions(totalDurationMs){
 }
 
 function goToOutro(){
+  pushChapterHistory('level-exposure');
   showLevel('level-outro', '10 · OUTRO');
   stopAllVideos();
   clearOutroTimeline();
@@ -929,6 +1004,10 @@ document.addEventListener('fullscreenchange', ()=>{
 });
 
 function resetAll(){
+  // clear back-navigation history
+  chapterHistory = [];
+  backBtn.classList.add('hidden');
+
   // stop webcam
   const webcamVideo = document.getElementById('webcam-video');
   if(webcamVideo.srcObject){ webcamVideo.srcObject.getTracks().forEach(t=>t.stop()); webcamVideo.srcObject=null; }
