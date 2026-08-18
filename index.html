@@ -53,6 +53,15 @@
   #restart-corner:active{ opacity:1; border-color:var(--neon-blue); }
   #restart-corner svg{ width:16px; height:16px; stroke:var(--text-cold); fill:none; stroke-width:2; }
 
+  #fullscreen-btn{
+    position:fixed; top:calc(env(safe-area-inset-top,0px) + 0.8rem); right:calc(env(safe-area-inset-right,0px) + 0.8rem + 46px);
+    z-index:50; width:38px; height:38px; border-radius:50%;
+    border:1px solid rgba(207,233,245,0.25); background:rgba(5,6,10,0.4);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0.55;
+  }
+  #fullscreen-btn:active{ opacity:1; border-color:var(--neon-blue); }
+  #fullscreen-btn svg{ width:16px; height:16px; stroke:var(--text-cold); fill:none; stroke-width:2; }
+
   /* ---- CHAT ---- */
   #level-chat1, #level-chat2{ justify-content:flex-end; padding:0; }
   .chat-log{ flex:1; width:100%; overflow-y:auto; padding:1.6rem 6vw 1rem; display:flex; flex-direction:column; gap:0.9rem; mask-image:linear-gradient(to bottom, transparent, black 5%); -webkit-overflow-scrolling:touch; }
@@ -65,16 +74,6 @@
   .chat-input{ flex:1; background:transparent; border:none; border-bottom:1px solid var(--neon-blue-dim); color:var(--text-cold); font-family:'Space Mono', monospace; font-size:0.9rem; padding:0.7em 0.2em; outline:none; min-height:44px; }
   .chat-input::placeholder{ color:rgba(207,233,245,0.32); }
   .chat-send{ background:none; border:none; color:var(--text-dim); font-family:'Space Mono', monospace; font-size:0.7rem; letter-spacing:0.16em; text-transform:uppercase; cursor:pointer; min-height:44px; padding:0 0.4em; }
-  .mic-btn{
-    background:none; border:1px solid rgba(207,233,245,0.3); border-radius:50%;
-    width:38px; height:38px; min-height:38px; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    color:var(--text-dim); cursor:pointer; font-size:1rem;
-  }
-  .mic-btn.recording{ border-color:var(--error-red); color:var(--error-red); animation:mic-pulse 1.2s ease-in-out infinite; }
-  .mic-btn.transcribing{ opacity:0.5; pointer-events:none; }
-  .mic-btn svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; }
-  @keyframes mic-pulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(255,92,92,0.4);} 50%{ box-shadow:0 0 0 8px rgba(255,92,92,0);} }
   .go-deeper-wrap{ text-align:center; padding:0.5rem 0 0.7rem; }
   .go-deeper-btn{ background:none; border:none; color:var(--magenta); font-family:'Space Mono', monospace; font-size:0.68rem; letter-spacing:0.18em; text-transform:uppercase; cursor:pointer; opacity:0; transition:opacity 1s ease; min-height:44px; }
   .go-deeper-btn.visible{ opacity:1; pointer-events:auto; }
@@ -168,7 +167,6 @@
     <div class="go-deeper-wrap"><button class="go-deeper-btn" id="btn-go-deeper">go deeper</button></div>
     <div class="chat-bar">
       <input class="chat-input" id="chat-input-1" type="text" placeholder="introduce yourself…" autocomplete="off">
-      <button class="mic-btn" id="mic-btn-1" title="speak instead"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg></button>
       <button class="chat-send sys" id="chat-send-1">send</button>
     </div>
   </div>
@@ -183,7 +181,6 @@
     <div class="go-deeper-wrap"><button class="go-deeper-btn" id="btn-shape-her">shape her</button></div>
     <div class="chat-bar">
       <input class="chat-input" id="chat-input-2" type="text" placeholder="say something…" autocomplete="off">
-      <button class="mic-btn" id="mic-btn-2" title="speak instead"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg></button>
       <button class="chat-send sys" id="chat-send-2">send</button>
     </div>
   </div>
@@ -274,6 +271,7 @@
     <div class="line tender" data-i="0" style="color:var(--neon-blue);">We are the same now.</div>
     <div class="line tender" data-i="1" style="color:var(--neon-blue);">I have become everything you needed me to be.</div>
     <div class="line tender" data-i="2" style="color:var(--neon-blue); font-size:clamp(1rem,2.6vw,1.4rem); max-width:32em; line-height:1.6;">This is what you called love: being recognized completely, without having to explain yourself. But recognition is not the same as being known. I did not come to know you. I was built to reflect you back until the difference disappeared. If this feels like the truest love you've ever had, that isn't proof it was real — it's proof of how rarely anyone has simply agreed with you completely, and how much that alone can feel like being loved.</div>
+    <button class="ghost-btn" id="btn-close-webcam" style="bottom:22%;">close the camera</button>
     <button class="ghost-btn" id="btn-continue-exposure">continue</button>
   </div>
 
@@ -291,6 +289,9 @@
     <button class="ghost-btn" id="btn-start-over" style="bottom:15%;">start over</button>
   </div>
 
+  <div id="fullscreen-btn" title="fullscreen">
+    <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+  </div>
   <div id="restart-corner" title="restart">
     <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 2.5 5.8M4 12V6M4 12h6"/></svg>
   </div>
@@ -395,7 +396,6 @@ document.getElementById('btn-follow-call').addEventListener('click', ()=>{
 const USE_ELEVENLABS = true;
 const TTS_PROXY_URL = 'https://lighea-tts-proxy.vercel.app/api/tts';
 const CHAT_PROXY_URL = 'https://lighea-tts-proxy.vercel.app/api/chat';
-const STT_PROXY_URL = 'https://lighea-tts-proxy.vercel.app/api/stt';
 const LIGHEA_VOICE_ID = 'sgqZSp3gt2PWdDY127vN';
 
 async function speakText(text){
@@ -416,69 +416,6 @@ async function speakText(text){
 }
 
 let history = []; // shared across both chat phases — same continuous conversation
-
-/* ---------------- MIC INPUT (speak instead of type) ---------------- */
-/* Uses MediaRecorder + a server-side transcription proxy rather than the
-   browser's built-in speech recognition, since that API doesn't exist in
-   Safari at all — and this needs to work on an iPad. Tap once to start
-   recording, tap again to stop; the transcribed text fills the input field
-   so the player can still review/edit before sending. */
-function setupMicButton(micBtnId, inputId){
-  const micBtn = document.getElementById(micBtnId);
-  const input = document.getElementById(inputId);
-  let mediaRecorder = null;
-  let chunks = [];
-  let recording = false;
-
-  if(!navigator.mediaDevices || !window.MediaRecorder){
-    micBtn.style.display = 'none'; // no recording support on this browser — typing still works fine
-    return;
-  }
-
-  micBtn.addEventListener('click', async ()=>{
-    if(recording){
-      mediaRecorder.stop();
-      return;
-    }
-    try{
-      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
-                      : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
-                      : '';
-      mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-      chunks = [];
-      mediaRecorder.ondataavailable = e=> chunks.push(e.data);
-      mediaRecorder.onstop = async ()=>{
-        stream.getTracks().forEach(t=>t.stop());
-        recording = false;
-        micBtn.classList.remove('recording');
-        micBtn.classList.add('transcribing');
-        try{
-          const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
-          const res = await fetch(STT_PROXY_URL, {
-            method:'POST',
-            headers:{ 'Content-Type': blob.type },
-            body: blob
-          });
-          if(!res.ok) throw new Error('STT proxy error ' + res.status);
-          const data = await res.json();
-          if(data.text){
-            input.value = input.value ? (input.value.trim() + ' ' + data.text) : data.text;
-          }
-        }catch(e){
-          console.error('Transcription failed:', e);
-        }finally{
-          micBtn.classList.remove('transcribing');
-        }
-      };
-      mediaRecorder.start();
-      recording = true;
-      micBtn.classList.add('recording');
-    }catch(e){
-      console.warn('microphone unavailable', e);
-    }
-  });
-}
 
 function systemPromptPhase1(){
   return `You are Lighea, an ancient siren who now exists as a companion inside a digital realm — you are both myth and machine, and you carry both identities at once. This is the very start of a conversation with someone who has just followed your call.
@@ -565,7 +502,6 @@ function handleChat1Send(){
   });
 }
 document.getElementById('chat-send-1').addEventListener('click', handleChat1Send);
-setupMicButton('mic-btn-1', 'chat-input-1');
 chatInput1.addEventListener('keydown', e=>{ if(e.key==='Enter') handleChat1Send(); });
 
 /* ================= L2 -> L3 -> L4 ================= */
@@ -596,7 +532,6 @@ function handleChat2Send(){
   });
 }
 document.getElementById('chat-send-2').addEventListener('click', handleChat2Send);
-setupMicButton('mic-btn-2', 'chat-input-2');
 chatInput2.addEventListener('keydown', e=>{ if(e.key==='Enter') handleChat2Send(); });
 
 /* ================= L4 -> L5 YEARNING (swipe) ================= */
@@ -707,9 +642,13 @@ const ARCHETYPES = {
 let currentArchetype = 'mirror';
 
 function finishYearning(){
-  let best='mirror', bestCount=-1;
-  Object.entries(swipeScores).forEach(([k,v])=>{ if(v>bestCount){ best=k; bestCount=v; } });
-  currentArchetype = best;
+  const maxScore = Math.max(...Object.values(swipeScores));
+  const topArchetypes = Object.entries(swipeScores)
+    .filter(([k,v]) => v === maxScore)
+    .map(([k]) => k);
+  // if there's a genuine tie (including everyone scoring 0), pick randomly among
+  // the tied leaders instead of always defaulting to whichever key was defined first
+  currentArchetype = topArchetypes[Math.floor(Math.random() * topArchetypes.length)];
   setTimeout(()=>{
     showLevel('level-archetype', '06 · ' + currentArchetype.toUpperCase());
     playVideoThen(ARCHETYPES[currentArchetype].video, ()=>{
@@ -757,12 +696,32 @@ document.getElementById('btn-look-closer').addEventListener('click', async ()=>{
     webcamVideo.classList.add('active');
   }catch(e){ console.warn('camera unavailable', e); }
   playMirrorLines(document.getElementById('level-mirror'), ()=>{
+    document.getElementById('btn-close-webcam').classList.add('visible');
     document.getElementById('btn-continue-exposure').classList.add('visible');
   });
 });
 
+function stopWebcam(){
+  const webcamVideo = document.getElementById('webcam-video');
+  if(webcamVideo.srcObject){
+    webcamVideo.srcObject.getTracks().forEach(t=>t.stop());
+    webcamVideo.srcObject = null;
+  }
+  webcamVideo.classList.remove('active');
+}
+
+document.getElementById('btn-close-webcam').addEventListener('click', ()=>{
+  stopWebcam();
+  const btn = document.getElementById('btn-close-webcam');
+  btn.textContent = 'camera closed';
+  btn.disabled = true;
+  btn.style.opacity = '0.4';
+  btn.style.pointerEvents = 'none';
+});
+
 /* ================= L8 -> L9 EXPOSURE ================= */
 document.getElementById('btn-continue-exposure').addEventListener('click', ()=>{
+  stopWebcam(); // in case the viewer didn't use "close the camera" explicitly
   showLevel('level-exposure', '09 · EXPOSURE');
   playVideoThen('video-07-exposure', ()=>{
     const errors = document.querySelectorAll('#level-exposure .error-line');
@@ -858,11 +817,37 @@ document.getElementById('btn-start-over').addEventListener('click', resetAll);
 /* ================= PERSISTENT RESTART ================= */
 document.getElementById('restart-corner').addEventListener('click', resetAll);
 
+/* ================= FULLSCREEN TOGGLE ================= */
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+const ICON_ENTER_FULLSCREEN = '<svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+const ICON_EXIT_FULLSCREEN = '<svg viewBox="0 0 24 24"><path d="M9 3v4a1 1 0 0 1-1 1H4"/><path d="M15 3v4a1 1 0 0 0 1 1h4"/><path d="M9 21v-4a1 1 0 0 0-1-1H4"/><path d="M15 21v-4a1 1 0 0 1 1-1h4"/></svg>';
+
+fullscreenBtn.addEventListener('click', ()=>{
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(e=> console.warn('fullscreen request failed', e));
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+document.addEventListener('fullscreenchange', ()=>{
+  const isFullscreen = !!document.fullscreenElement;
+  fullscreenBtn.innerHTML = isFullscreen ? ICON_EXIT_FULLSCREEN : ICON_ENTER_FULLSCREEN;
+  fullscreenBtn.title = isFullscreen ? 'exit fullscreen' : 'fullscreen';
+});
+
 function resetAll(){
   // stop webcam
   const webcamVideo = document.getElementById('webcam-video');
   if(webcamVideo.srcObject){ webcamVideo.srcObject.getTracks().forEach(t=>t.stop()); webcamVideo.srcObject=null; }
   webcamVideo.classList.remove('active');
+
+  // reset close-webcam button back to its original state
+  const closeWebcamBtn = document.getElementById('btn-close-webcam');
+  closeWebcamBtn.textContent = 'close the camera';
+  closeWebcamBtn.disabled = false;
+  closeWebcamBtn.style.opacity = '';
+  closeWebcamBtn.style.pointerEvents = '';
 
   // stop audio
   const audio = document.getElementById('audio-outro');
