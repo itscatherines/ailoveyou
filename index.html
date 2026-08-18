@@ -123,7 +123,7 @@
   <video class="level-video" id="video-00-intro" src="videos/00_intro.mp4" muted loop playsinline webkit-playsinline preload="auto"></video>
   <video class="level-video" id="video-01-encounter" src="videos/01_encounter.mp4" playsinline webkit-playsinline preload="auto"></video>
   <video class="level-video" id="video-02-thechat" src="videos/02_thechat.mp4" playsinline webkit-playsinline preload="auto"></video>
-  <video class="level-video" id="video-03-yearning" src="videos/03_yearning.mp4" muted loop playsinline webkit-playsinline preload="auto"></video>
+  <video class="level-video" id="video-03-yearning" src="videos/03_yearning.mp4" loop playsinline webkit-playsinline preload="auto"></video>
   <video class="level-video" id="video-04a-devoted" src="videos/04a_devoted.mp4" playsinline webkit-playsinline preload="auto"></video>
   <video class="level-video" id="video-04b-playful" src="videos/04b_playful.mp4" playsinline webkit-playsinline preload="auto"></video>
   <video class="level-video" id="video-04c-enigmatic" src="videos/04c_enigmatic.mp4" playsinline webkit-playsinline preload="auto"></video>
@@ -293,11 +293,25 @@ function playLines(container, gap, onDone){
 
 /* ================= L0 INTRO ================= */
 playVideo('video-00-intro');
+/* video-00-intro starts muted — required for it to autoplay at all before any
+   user interaction, since browsers block unmuted autoplay pre-gesture. The
+   moment "Play" is tapped, that tap itself IS the gesture, so we unmute it
+   and let it play briefly with sound before cutting to Encounter. */
 document.getElementById('btn-play').addEventListener('click', ()=>{
-  showLevel('level-encounter', '01 · ENCOUNTER');
-  playVideoThen('video-01-encounter', ()=>{
-    document.getElementById('btn-follow-call').classList.add('visible');
-  });
+  const introVideo = document.getElementById('video-00-intro');
+  const cutToEncounter = ()=>{
+    showLevel('level-encounter', '01 · ENCOUNTER');
+    playVideoThen('video-01-encounter', ()=>{
+      document.getElementById('btn-follow-call').classList.add('visible');
+    });
+  };
+  if(introVideo.muted){
+    introVideo.muted = false;
+    introVideo.play().catch(()=>{});
+    setTimeout(cutToEncounter, 1200); // brief moment of the intro's sound before cutting
+  } else {
+    cutToEncounter();
+  }
 });
 
 /* ================= L1 -> L2 ================= */
@@ -701,6 +715,7 @@ function resetAll(){
   });
 
   showLevel('level-intro', '00 · INTRO');
+  document.getElementById('video-00-intro').muted = true;
   playVideo('video-00-intro');
 }
 </script>
