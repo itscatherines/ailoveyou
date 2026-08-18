@@ -361,8 +361,8 @@ document.getElementById('btn-follow-call').addEventListener('click', ()=>{
 
 /* ================= CHAT ENGINE (shared) ================= */
 const USE_ELEVENLABS = true;
-const TTS_PROXY_URL = 'https://your-proxy.example.com/tts'; // replace with your deployed Vercel URL
-const CHAT_PROXY_URL = 'https://your-proxy.example.com/chat'; // same Vercel project as TTS, different route — see api/chat.js
+const TTS_PROXY_URL = 'https://lighea-tts-proxy.vercel.app/api/tts';
+const CHAT_PROXY_URL = 'https://lighea-tts-proxy.vercel.app/api/chat';
 const LIGHEA_VOICE_ID = 'sgqZSp3gt2PWdDY127vN';
 
 async function speakText(text){
