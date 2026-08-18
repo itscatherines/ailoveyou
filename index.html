@@ -85,6 +85,23 @@
   .yearning-head{ position:absolute; top:8%; left:0; right:0; text-align:center; z-index:6; }
   .yearning-head .yearning-title{ font-family:'Cinzel', serif; letter-spacing:0.16em; font-size:0.8rem; color:var(--magenta); text-transform:uppercase; }
   .yearning-head .yearning-sub{ font-family:'Cormorant Garamond', serif; font-style:italic; font-size:1.1rem; color:var(--text-cold); margin-top:0.4rem; }
+
+  /* self-profile quiz (level-profile) */
+  #level-profile{ display:flex; flex-direction:column; align-items:center; }
+  #level-profile .yearning-title{ font-family:'Cinzel', serif; letter-spacing:0.16em; font-size:0.8rem; color:var(--magenta); text-transform:uppercase; margin-bottom:0.6rem; }
+  .q-block{ width:100%; max-width:46em; margin-bottom:1.6rem; display:none; opacity:0; transition:opacity 0.6s ease; }
+  .q-block.active{ display:block; opacity:1; }
+  .q-text{ font-size:0.72rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-dim); margin-bottom:0.8rem; text-align:center; }
+  .card-row{ display:flex; flex-wrap:wrap; gap:0.8rem; justify-content:center; }
+  .trait-card{
+    border:1px solid rgba(216,79,192,0.35); border-radius:2px;
+    padding:0.85em 1.2em; min-width:140px;
+    font-family:'Cormorant Garamond', serif; font-style:italic; font-size:0.98rem;
+    color:var(--text-dim); text-align:center; cursor:pointer;
+    transition:border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .trait-card:hover{ border-color:var(--magenta); color:var(--text-cold); }
+  .trait-card.selected{ border-color:var(--neon-blue); color:var(--neon-blue); box-shadow:0 0 14px var(--neon-blue-dim); }
   .card-stack{ position:relative; width:min(320px,84vw); height:min(400px,52vh); }
   .swipe-card{
     position:absolute; inset:0; border:1px solid rgba(207,233,245,0.25); border-radius:14px;
@@ -240,7 +257,7 @@
       </div>
     </div>
 
-    <button class="ghost-btn" id="btn-profile-continue" style="position:static; opacity:1; margin-top:0.6rem;">she's listening</button>
+    <button class="ghost-btn" id="btn-profile-continue" style="position:static; margin-top:0.6rem;">she's listening</button>
   </div>
 
   <!-- L5 YEARNING (swipe) -->
@@ -375,6 +392,19 @@ document.getElementById('btn-sound-on').addEventListener('click', ()=>{
   const introVideo = document.getElementById('video-00-intro');
   introVideo.muted = false;
   introVideo.play().catch(()=>{});
+
+  // "Unlock" the outro audio element now, using this very first real tap of
+  // the whole experience. By the time the outro actually plays, it's several
+  // setTimeouts removed from the last button press — Safari in particular
+  // blocks audio.play() at that point without a recent gesture. Playing (and
+  // immediately pausing) it here, silently, grants this specific element
+  // permission to play later on its own.
+  const outroAudio = document.getElementById('audio-outro');
+  outroAudio.play().then(()=>{
+    outroAudio.pause();
+    outroAudio.currentTime = 0;
+  }).catch(()=>{});
+
   showLevel('level-intro', '00 · INTRO');
 });
 
@@ -551,20 +581,42 @@ const cardStack = document.getElementById('card-stack');
 const progressEl = document.getElementById('yearning-progress');
 
 /* ---- SELF-PROFILE (text-based, about the player) ---- */
+/* Questions appear one at a time — tapping an answer both selects it and
+   advances to the next question, so the player clicks through in sequence
+   rather than seeing (and scrolling past) all five at once. */
 const playerProfile = {}; // qId -> chosen value, used to flavor later chat context
-document.querySelectorAll('#level-profile .q-block').forEach(block=>{
+const profileBlocks = Array.from(document.querySelectorAll('#level-profile .q-block'));
+let profileIndex = 0;
+
+function showProfileQuestion(i){
+  profileBlocks.forEach((b,idx)=> b.classList.toggle('active', idx === i));
+  const continueBtn = document.getElementById('btn-profile-continue');
+  if(i >= profileBlocks.length){
+    continueBtn.classList.add('visible');
+  } else {
+    continueBtn.classList.remove('visible');
+  }
+}
+
+profileBlocks.forEach(block=>{
   const qId = block.dataset.q;
   block.querySelectorAll('.trait-card').forEach(card=>{
     card.addEventListener('click', ()=>{
       block.querySelectorAll('.trait-card').forEach(c=>c.classList.remove('selected'));
       card.classList.add('selected');
       playerProfile[qId] = card.textContent;
+      setTimeout(()=>{
+        profileIndex++;
+        showProfileQuestion(profileIndex);
+      }, 450); // brief pause so the selection is visibly registered before advancing
     });
   });
 });
 
 document.getElementById('btn-shape-her').addEventListener('click', ()=>{
   showLevel('level-profile', '04.5 · BEFORE SHE BECOMES YOURS');
+  profileIndex = 0;
+  showProfileQuestion(profileIndex);
 });
 
 document.getElementById('btn-profile-continue').addEventListener('click', ()=>{
@@ -662,31 +714,71 @@ function finishYearning(){
   }, 500);
 }
 
-function playMirrorLines(container, onDone){
+/* Reads the entire mirror text as ONE continuous voice line (not three
+   separate TTS calls), and times the visual reveal of each line against the
+   REAL duration of that audio once it's loaded — same technique used for
+   the outro captions — rather than guessing from words-per-minute. Falls
+   back to the estimated-timing approach if the proxy is unreachable. */
+async function playMirrorLines(container, onDone){
   const lines = container.querySelectorAll('.line');
   const texts = Array.from(lines).map(l=>l.textContent.trim());
+  const combinedText = texts.join(' ');
   const wordCounts = texts.map(t=>t.split(/\s+/).length);
-  const MIN_MS = 3000; // floor so even the short lines get a readable beat
-  const WPM = 110; // slower, deliberate pace for this moment
-  const durations = wordCounts.map(w=>Math.max(MIN_MS, (w/WPM)*60*1000));
+  const totalWords = wordCounts.reduce((a,b)=>a+b,0);
 
-  let cursor = 0;
-  lines.forEach((el,i)=>{
+  function revealSequence(totalDurationMs){
+    let cursor = 0;
+    lines.forEach((el,i)=>{
+      const share = wordCounts[i] / totalWords;
+      const duration = share * totalDurationMs;
+      setTimeout(()=>{
+        lines.forEach(l=>l.classList.remove('visible'));
+        el.classList.add('visible');
+      }, cursor + 300);
+      cursor += duration;
+    });
     setTimeout(()=>{
       lines.forEach(l=>l.classList.remove('visible'));
-      el.classList.add('visible');
-      speakText(texts[i]);
-    }, cursor + 400);
-    cursor += durations[i];
-  });
-  setTimeout(()=>{
-    lines.forEach(l=>l.classList.remove('visible'));
-    if(onDone) onDone();
-  }, cursor + 900);
+      if(onDone) onDone();
+    }, cursor + 900);
+  }
+
+  if(USE_ELEVENLABS){
+    try{
+      const res = await fetch(TTS_PROXY_URL, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ text: combinedText, voice_id: LIGHEA_VOICE_ID })
+      });
+      const audioBlob = await res.blob();
+      const audio = new Audio(URL.createObjectURL(audioBlob));
+      audio.addEventListener('loadedmetadata', ()=>{
+        revealSequence(audio.duration * 1000);
+      }, { once:true });
+      audio.play();
+      return;
+    }catch(e){ console.warn('Mirror TTS failed, falling back', e); }
+  }
+
+  // fallback: browser voice reads the whole thing as one utterance, estimated timing
+  if('speechSynthesis' in window){
+    const utter = new SpeechSynthesisUtterance(combinedText);
+    utter.rate = 0.95; utter.pitch = 1.0;
+    speechSynthesis.speak(utter);
+  }
+  const WPM = 110;
+  revealSequence((totalWords / WPM) * 60 * 1000);
 }
 
 /* ================= L7 -> L8 MIRROR ================= */
 document.getElementById('btn-look-closer').addEventListener('click', async ()=>{
+  // iPad Safari bug: the camera permission prompt can fail to render (or hang
+  // silently) while the page is in true fullscreen — exit first so it's a
+  // normal windowed request, which Safari can actually display.
+  if(document.fullscreenElement){
+    try{ await document.exitFullscreen(); }catch(e){}
+    await new Promise(r=>setTimeout(r, 300));
+  }
+
   showLevel('level-mirror', '08 · MIRRORING');
   stopAllVideos();
   const webcamVideo = document.getElementById('webcam-video');
