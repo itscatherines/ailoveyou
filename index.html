@@ -170,6 +170,7 @@
   <video class="level-video" id="video-07-exposure" data-src="videos/07_exposure.mp4" playsinline webkit-playsinline preload="none"></video>
   <video id="webcam-video" autoplay playsinline muted></video>
   <audio id="audio-outro" src="outro.mp3" preload="auto"></audio>
+  <audio id="audio-tts" preload="none"></audio>
 
   <div class="vignette"></div>
   <div class="level-badge" id="level-badge">START</div>
@@ -384,13 +385,15 @@ function playVideo(id){
   v.classList.add('active');
   v.play().catch(e=>console.warn('autoplay blocked', id, e));
 }
-/* Plays a video, then calls the callback on 'ended' — or on 'error' if the
-   file is missing/broken, so a bad or absent video file never permanently
-   stalls the piece. Only one of the two fires. */
+/* Plays a video, then calls the callback on 'ended' — or on 'error'/a
+   rejected play() promise if the file is missing, broken, or the browser
+   simply refuses to start it (common right after a freshly lazy-loaded
+   src). Any one of these three triggers the callback exactly once, so a
+   failed video can never leave the piece stuck on that screen. */
 function playVideoThen(id, callback){
-  playVideo(id);
   const v = document.getElementById(id);
   if(!v){ callback(); return; }
+
   let called = false;
   function done(e){
     if(called) return;
@@ -402,6 +405,33 @@ function playVideoThen(id, callback){
   }
   v.addEventListener('ended', done, { once:true });
   v.addEventListener('error', done, { once:true });
+
+  // unload/switch videos the same way playVideo() does, but keep control of
+  // the play() promise here so a rejection can also trigger done()
+  document.querySelectorAll('.level-video').forEach(other=>{
+    other.classList.remove('active');
+    if(other.id !== id){
+      other.pause();
+      if(other.id !== 'video-00-intro' && other.dataset.src && other.getAttribute('src')){
+        other.removeAttribute('src');
+        other.load();
+      }
+    }
+  });
+  if(v.dataset.src && !v.getAttribute('src')){
+    v.src = v.dataset.src;
+    v.load();
+  }
+  v.currentTime = 0;
+  v.classList.add('active');
+
+  const playPromise = v.play();
+  if(playPromise && typeof playPromise.catch === 'function'){
+    playPromise.catch(e=>{
+      console.warn('video play() rejected, continuing anyway:', id, e);
+      done();
+    });
+  }
 }
 function stopAllVideos(){
   document.querySelectorAll('.level-video').forEach(v=>{ v.classList.remove('active'); v.pause(); v.currentTime=0; });
@@ -471,6 +501,17 @@ document.getElementById('btn-sound-on').addEventListener('click', ()=>{
     outroAudio.currentTime = 0;
   }).catch(()=>{});
 
+  // Same unlock trick for the shared TTS audio element (used for every
+  // chat reply and the Mirror voice). It has no real audio yet to unlock
+  // with, so a tiny silent clip stands in — the unlock persists on this
+  // element regardless of what plays through it later.
+  const ttsAudio = document.getElementById('audio-tts');
+  ttsAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==';
+  ttsAudio.play().then(()=>{
+    ttsAudio.pause();
+    ttsAudio.currentTime = 0;
+  }).catch(()=>{});
+
   showLevel('level-intro', '00 · INTRO');
 });
 
@@ -501,8 +542,9 @@ async function speakText(text){
     try{
       const res = await fetch(TTS_PROXY_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ text, voice_id: LIGHEA_VOICE_ID }) });
       const audioBlob = await res.blob();
-      const audio = new Audio(URL.createObjectURL(audioBlob));
-      audio.play();
+      const ttsAudio = document.getElementById('audio-tts');
+      ttsAudio.src = URL.createObjectURL(audioBlob);
+      ttsAudio.play().catch(e=> console.warn('TTS play() blocked', e));
       return;
     }catch(e){ console.warn('TTS proxy failed, falling back', e); }
   }
@@ -822,11 +864,12 @@ async function playMirrorLines(container, onDone){
         body: JSON.stringify({ text: combinedText, voice_id: LIGHEA_VOICE_ID })
       });
       const audioBlob = await res.blob();
-      const audio = new Audio(URL.createObjectURL(audioBlob));
-      audio.addEventListener('loadedmetadata', ()=>{
-        revealSequence(audio.duration * 1000);
+      const ttsAudio = document.getElementById('audio-tts');
+      ttsAudio.src = URL.createObjectURL(audioBlob);
+      ttsAudio.addEventListener('loadedmetadata', ()=>{
+        revealSequence(ttsAudio.duration * 1000);
       }, { once:true });
-      audio.play();
+      ttsAudio.play().catch(e=> console.warn('Mirror TTS play() blocked', e));
       return;
     }catch(e){ console.warn('Mirror TTS failed, falling back', e); }
   }
